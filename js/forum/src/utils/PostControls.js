@@ -57,16 +57,10 @@ export default {
     const items = new ItemList();
 
     if (post.contentType() === 'comment' && post.canEdit()) {
-      if (post.isHidden()) {
-        items.add('restore', Button.component({
-          icon: 'reply',
-          children: app.trans('core.restore'),
-          onclick: this.restoreAction.bind(post)
-        }));
-      } else {
+      if (!post.isHidden()) {
         items.add('edit', Button.component({
           icon: 'pencil',
-          children: app.trans('core.edit'),
+          children: app.trans('core.forum.post_controls_edit_button'),
           onclick: this.editAction.bind(post)
         }));
       }
@@ -87,17 +81,26 @@ export default {
   destructiveControls(post) {
     const items = new ItemList();
 
-    if (post.number() !== 1) {
-      if (post.contentType() === 'comment' && !post.isHidden() && post.canEdit()) {
+    if (post.contentType() === 'comment' && !post.isHidden()) {
+      if (post.canEdit()) {
         items.add('hide', Button.component({
-          icon: 'times',
-          children: app.trans('core.delete'),
+          icon: 'trash-o',
+          children: app.trans('core.forum.post_controls_delete_button'),
           onclick: this.hideAction.bind(post)
         }));
-      } else if ((post.contentType() !== 'comment' || post.isHidden()) && post.canDelete()) {
+      }
+    } else {
+      if (post.canEdit()) {
+        items.add('restore', Button.component({
+          icon: 'reply',
+          children: app.trans('core.forum.post_controls_restore_button'),
+          onclick: this.restoreAction.bind(post)
+        }));
+      }
+      if (post.canDelete() && post.number() !== 1) {
         items.add('delete', Button.component({
           icon: 'times',
-          children: app.trans('core.delete_forever'),
+          children: app.trans('core.forum.post_controls_delete_forever_button'),
           onclick: this.deleteAction.bind(post)
         }));
       }
@@ -116,25 +119,34 @@ export default {
 
   /**
    * Hide a post.
+   *
+   * @return {Promise}
    */
   hideAction() {
-    this.save({ isHidden: true });
     this.pushAttributes({ hideTime: new Date(), hideUser: app.session.user });
+
+    return this.save({ isHidden: true }).then(() => m.redraw());
   },
 
   /**
    * Restore a post.
+   *
+   * @return {Promise}
    */
   restoreAction() {
-    this.save({ isHidden: false });
     this.pushAttributes({ hideTime: null, hideUser: null });
+
+    return this.save({ isHidden: false }).then(() => m.redraw());
   },
 
   /**
    * Delete a post.
+   *
+   * @return {Promise}
    */
   deleteAction() {
-    this.delete();
     this.discussion().removePost(this.id());
+
+    return this.delete();
   }
 };

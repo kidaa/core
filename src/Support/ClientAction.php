@@ -17,7 +17,6 @@ use Flarum\Assets\LessCompiler;
 use Flarum\Core;
 use Flarum\Core\Settings\SettingsRepository;
 use Flarum\Core\Users\User;
-use Flarum\Events\BuildClientView;
 use Flarum\Locale\JsCompiler as LocaleJsCompiler;
 use Flarum\Locale\LocaleManager;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -100,15 +99,15 @@ abstract class ClientAction extends HtmlAction
         $actor = app('flarum.actor');
         $assets = $this->getAssets();
         $locale = $this->getLocale($actor, $request);
-        $localeCompiler = $this->getLocaleCompiler($locale);
+        $localeCompiler = $locale ? $this->getLocaleCompiler($locale) : null;
 
         $view = new ClientView(
             $this->apiClient,
             $request,
             $actor,
             $assets,
-            $localeCompiler,
-            $this->layout
+            $this->layout,
+            $localeCompiler
         );
 
         $view->setVariable('locales', $this->locales->getLocales());
@@ -120,17 +119,27 @@ abstract class ClientAction extends HtmlAction
         // which translations should be included in the locale file. Afterwards,
         // we will filter all of the translations for the actor's locale and
         // compile only the ones we need.
-        $translations = $this->locales->getTranslations($locale);
         $keys = $this->translationKeys;
 
-        event(new BuildClientView($this, $view, $keys));
+        $this->fireEvent($view, $keys);
 
-        $translations = $this->filterTranslations($translations, $keys);
+        if ($localeCompiler) {
+            $translations = $this->locales->getTranslations($locale);
 
-        $localeCompiler->setTranslations($translations);
+            $translations = $this->filterTranslations($translations, $keys);
+
+            $localeCompiler->setTranslations($translations);
+        }
 
         return $view;
     }
+
+    /**
+     * @param ClientView $view
+     * @param array &$keys
+     * @return void
+     */
+    abstract protected function fireEvent(ClientView $view, array &$keys);
 
     /**
      * Flush the client's assets so that they will be regenerated from scratch
@@ -141,6 +150,12 @@ abstract class ClientAction extends HtmlAction
     public function flushAssets()
     {
         $this->getAssets()->flush();
+
+        $locales = array_keys($this->locales->getLocales());
+
+        foreach ($locales as $locale) {
+            $this->getLocaleCompiler($locale)->flush();
+        }
     }
 
     /**
@@ -248,10 +263,12 @@ abstract class ClientAction extends HtmlAction
         }
 
         if (! $locale || ! $this->locales->hasLocale($locale)) {
-            return $this->settings->get('default_locale', 'en');
+            $locale = $this->settings->get('default_locale', 'en');
         }
 
-        return $locale;
+        if ($this->locales->hasLocale($locale)) {
+            return $locale;
+        }
     }
 
     /**

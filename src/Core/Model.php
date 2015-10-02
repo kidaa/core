@@ -10,14 +10,8 @@
 
 namespace Flarum\Core;
 
-use Flarum\Core\Exceptions\PermissionDeniedException;
-use Flarum\Core\Users\User;
-use Flarum\Events\ModelAllow;
 use Flarum\Events\ModelDates;
 use Flarum\Events\ModelRelationship;
-use Flarum\Events\ScopeModelVisibility;
-use Illuminate\Contracts\Validation\Factory;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model as Eloquent;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use LogicException;
@@ -40,6 +34,29 @@ abstract class Model extends Eloquent
      * @var boolean
      */
     public $timestamps = false;
+
+    /**
+     * An array of callbacks to be run once after the model is saved.
+     *
+     * @var callable[]
+     */
+    public $afterSaveCallbacks = [];
+
+    /**
+     * {@inheritdoc}
+     */
+    public static function boot()
+    {
+        parent::boot();
+
+        static::saved(function (Model $model) {
+            foreach ($model->afterSaveCallbacks as $callback) {
+                $callback($model);
+            }
+
+            $model->afterSaveCallbacks = [];
+        });
+    }
 
     /**
      * Get the attributes that should be converted to dates.
@@ -77,7 +94,7 @@ abstract class Model extends Eloquent
         // If a custom relation with this key has been set up, then we will load
         // and return results from the query and hydrate the relationship's
         // value on the "relationships" array.
-        if ($relation = $this->getCustomRelation($key)) {
+        if (! $this->relationLoaded($key) && ($relation = $this->getCustomRelation($key))) {
             if (! $relation instanceof Relation) {
                 throw new LogicException('Relationship method must return an object of type '
                     . 'Illuminate\Database\Eloquent\Relations\Relation');
@@ -98,6 +115,17 @@ abstract class Model extends Eloquent
         return static::$dispatcher->until(
             new ModelRelationship($this, $name)
         );
+    }
+
+    /**
+     * Register a callback to be run once after the model is saved.
+     *
+     * @param callable $callback
+     * @return void
+     */
+    public function afterSave($callback)
+    {
+        $this->afterSaveCallbacks[] = $callback;
     }
 
     /**

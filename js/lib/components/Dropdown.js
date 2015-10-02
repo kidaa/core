@@ -14,6 +14,7 @@ import listItems from 'flarum/helpers/listItems';
  * - `caretIcon` The name of an icon to show on the right of the button.
  * - `label` The label of the dropdown toggle button. Defaults to 'Controls'.
  * - `onhide`
+ * - `onshow`
  *
  * The children will be displayed as a list inside of the dropdown menu.
  */
@@ -23,20 +24,18 @@ export default class Dropdown extends Component {
 
     props.className = props.className || '';
     props.buttonClassName = props.buttonClassName || '';
-    props.contentClassName = props.contentClassName || '';
-    props.label = props.label || app.trans('core.controls');
+    props.menuClassName = props.menuClassName || '';
+    props.label = props.label || '';
     props.caretIcon = typeof props.caretIcon !== 'undefined' ? props.caretIcon : 'caret-down';
   }
 
   view() {
-    const items = listItems(this.props.children);
+    const items = this.props.children ? listItems(this.props.children) : [];
 
     return (
       <div className={'ButtonGroup Dropdown dropdown ' + this.props.className + ' itemCount' + items.length}>
         {this.getButton()}
-        <ul className={'Dropdown-menu dropdown-menu ' + this.props.menuClassName}>
-          {items}
-        </ul>
+        {this.getMenu(items)}
       </div>
     );
   }
@@ -54,9 +53,14 @@ export default class Dropdown extends Component {
         'Dropdown-menu--top',
         $menu.offset().top + $menu.height() > $(window).scrollTop() + $(window).height()
       );
+
+      if (this.props.onshow) {
+        this.props.onshow();
+        m.redraw();
+      }
     });
 
-    this.$().on('hide.bs.dropdown', () => {
+    this.$().on('hidden.bs.dropdown', () => {
       if (this.props.onhide) {
         this.props.onhide();
         m.redraw();
@@ -93,5 +97,13 @@ export default class Dropdown extends Component {
       <span className="Button-label">{this.props.label}</span>,
       this.props.caretIcon ? icon(this.props.caretIcon, {className: 'Button-caret'}) : ''
     ];
+  }
+
+  getMenu(items) {
+    return (
+      <ul className={'Dropdown-menu dropdown-menu ' + this.props.menuClassName}>
+        {items}
+      </ul>
+    );
   }
 }

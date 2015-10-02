@@ -1,5 +1,4 @@
 <?php
-
 /*
  * This file is part of Flarum.
  *
@@ -8,6 +7,8 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
+namespace Flarum\Migrations\Core;
 
 use Flarum\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -23,8 +24,8 @@ class CreateEmailTokensTable extends Migration
     {
         $this->schema->create('email_tokens', function (Blueprint $table) {
             $table->string('id', 100)->primary();
-            $table->integer('user_id')->unsigned();
             $table->string('email', 150);
+            $table->integer('user_id')->unsigned();
             $table->timestamp('created_at');
         });
     }

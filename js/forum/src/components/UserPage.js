@@ -1,4 +1,4 @@
-import Component from 'flarum/Component';
+import Page from 'flarum/components/Page';
 import ItemList from 'flarum/utils/ItemList';
 import affixSidebar from 'flarum/utils/affixSidebar';
 import UserCard from 'flarum/components/UserCard';
@@ -15,7 +15,7 @@ import listItems from 'flarum/helpers/listItems';
  *
  * @abstract
  */
-export default class UserPage extends Component {
+export default class UserPage extends Page {
   constructor(...args) {
     super(...args);
 
@@ -27,9 +27,8 @@ export default class UserPage extends Component {
     this.user = null;
 
     app.history.push('user');
-    app.current = this;
-    app.drawer.hide();
-    app.modal.close();
+
+    this.bodyClass = 'App--user';
   }
 
   view() {
@@ -57,13 +56,6 @@ export default class UserPage extends Component {
     );
   }
 
-  config(isInitialized, context) {
-    if (isInitialized) return;
-
-    $('#app').addClass('App--user');
-    context.onunload = () => $('#app').removeClass('App--user');
-  }
-
   /**
    * Get the content to display in the user page.
    *
@@ -79,7 +71,7 @@ export default class UserPage extends Component {
    * @param {User} user
    * @protected
    */
-  init(user) {
+  show(user) {
     this.user = user;
 
     app.setTitle(user.username());
@@ -98,13 +90,13 @@ export default class UserPage extends Component {
 
     app.store.all('users').some(user => {
       if (user.username().toLowerCase() === lowercaseUsername && user.joinTime()) {
-        this.init(user);
+        this.show(user);
         return true;
       }
     });
 
     if (!this.user) {
-      app.store.find('users', username).then(this.init.bind(this));
+      app.store.find('users', username).then(this.show.bind(this));
     }
   }
 
@@ -139,7 +131,7 @@ export default class UserPage extends Component {
     items.add('posts',
       LinkButton.component({
         href: app.route('user.posts', {username: user.username()}),
-        children: [app.trans('core.posts'), <span className="Button-badge">{user.commentsCount()}</span>],
+        children: [app.trans('core.forum.user_posts_link'), <span className="Button-badge">{user.commentsCount()}</span>],
         icon: 'comment-o'
       })
     );
@@ -147,7 +139,7 @@ export default class UserPage extends Component {
     items.add('discussions',
       LinkButton.component({
         href: app.route('user.discussions', {username: user.username()}),
-        children: [app.trans('core.discussions'), <span className="Button-badge">{user.discussionsCount()}</span>],
+        children: [app.trans('core.forum.user_discussions_link'), <span className="Button-badge">{user.discussionsCount()}</span>],
         icon: 'reorder'
       })
     );
@@ -157,7 +149,7 @@ export default class UserPage extends Component {
       items.add('settings',
         LinkButton.component({
           href: app.route('settings'),
-          children: app.trans('core.settings'),
+          children: app.trans('core.forum.user_settings_link'),
           icon: 'cog'
         })
       );

@@ -2,24 +2,22 @@
 // Posts
 
 .Post {
-  padding: 30px 0;
+  padding: 20px;
+  margin: -1px -20px;
   transition: 0.2s box-shadow, top 0.2s, opacity 0.2s;
   position: relative;
   top: 0;
+  border-radius: @border-radius;
+  .clearfix();
 
   &.editing {
     top: 5px;
     opacity: 0.5;
   }
 }
-.Post-controls {
-  float: right;
-  margin-top: -8px;
-  margin-left: 10px;
-}
 
 .Post-header {
-  margin-bottom: 10px;
+  margin-bottom: 15px;
   color: @muted-color;
 
   &, a {
@@ -48,7 +46,7 @@
   h3, h3 a {
     color: @heading-color;
     font-weight: bold;
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .UserCard {
@@ -83,6 +81,7 @@
   font-size: 14px;
   line-height: 1.7;
   position: relative;
+  overflow: auto;
 
   p, ul, ol, blockquote {
     margin-bottom: 1em;
@@ -114,6 +113,11 @@
     color: #666;
     font-size: 90%;
     border-radius: @border-radius;
+
+    .hljs {
+      padding: 0;
+      background: none;
+    }
   }
   h1 {
     font-size: 160%;
@@ -131,14 +135,17 @@
     font-size: 100%;
     font-weight: bold;
   }
-  img {
+  img, iframe {
     max-width: 100%;
   }
 }
 
-.Post.hidden {
-  .Post-header, .Post-header a, .Post-user h3, .Post-user h3 a {
+.Post--hidden {
+  .Post-header, .Post-header a, .PostUser h3, .PostUser h3 a {
     color: @muted-more-color;
+  }
+  &:not(.revealContent) .Post-header {
+    margin-bottom: 0;
   }
   .Post-body, .Post-footer, h3 .Avatar, .PostUser-badges {
     position: absolute;
@@ -201,7 +208,7 @@
   }
 }
 .EventPost-info {
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .DiscussionRenamedPost-old, .DiscussionRenamedPost-new {
@@ -227,6 +234,8 @@
   }
 }
 .Post-footer {
+  margin-top: 5px;
+
   > ul {
     > li {
       margin-bottom: 5px;
@@ -238,22 +247,36 @@
   }
 }
 .Post-actions {
-  margin-top: 10px;
+  margin-top: -5px;
+  float: right;
+  position: relative;
+  z-index: 1;
   .transition(opacity 0.2s);
 
+  .EventPost &, .Post--hidden:not(.revealContent) & {
+    margin-top: -27px;
+    margin-bottom: -15px;
+  }
+
   @media @tablet-up {
-    margin-bottom: -10px;
-    opacity: 0;
+    .no-touch & {
+      opacity: 0;
+    }
   }
 
   > ul {
     > li {
-      margin-right: 10px;
+      margin-right: 0;
+      margin-left: -5px;
       display: inline-block;
+      vertical-align: top;
     }
   }
-  .Post:hover & {
+  .Post:hover &, &.open {
     opacity: 1;
+  }
+  &.open {
+    z-index: 2;
   }
 }
 
@@ -285,14 +308,6 @@
 }
 
 @media @phone {
-  .Post-controls {
-    margin-top: -6px;
-    margin-right: -8px;
-
-    .Dropdown-toggle {
-      opacity: 0.5;
-    }
-  }
   .Post-header {
     .Avatar {
       .Avatar--size(32px);
@@ -321,33 +336,27 @@
   }
 }
 
+@avatar-column-width: 85px;
+
 @media @tablet-up {
   .Post {
-    padding-left: 90px;
-
-    .Post-controls {
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-    &:hover .Post-controls, .Post-controls.open {
-      opacity: 1;
-    }
+    padding-left: 20px + @avatar-column-width;
   }
   .PostUser-avatar {
-    margin-left: -90px;
+    margin-left: -@avatar-column-width;
     float: left;
     .Avatar--size(64px);
   }
   .PostUser-badges {
     float: left;
     position: relative;
-    margin-left: -85px;
+    margin-left: -@avatar-column-width + 5px;
     margin-top: -3px;
     width: 64px;
   }
   .EventPost-icon {
     text-align: right;
-    margin-left: -90px;
+    margin-left: -@avatar-column-width;
     width: 64px;
     font-size: 22px;
   }

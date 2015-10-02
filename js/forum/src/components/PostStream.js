@@ -38,7 +38,7 @@ class PostStream extends mixin(Component, evented) {
     this.loadPageTimeouts = {};
     this.pagesLoading = 0;
 
-    this.init(this.props.includedPosts);
+    this.show(this.props.includedPosts);
   }
 
   /**
@@ -153,7 +153,7 @@ class PostStream extends mixin(Component, evented) {
    *
    * @param {Post[]} posts
    */
-  init(posts) {
+  show(posts) {
     this.visibleStart = posts.length ? this.discussion.postIds().indexOf(posts[0].id()) : 0;
     this.visibleEnd = this.visibleStart + posts.length;
   }
@@ -181,7 +181,7 @@ class PostStream extends mixin(Component, evented) {
       .map(id => {
         const post = app.store.getById('posts', id);
 
-        return post && post.discussion() ? post : null;
+        return post && post.discussion() && post.user() !== false && post.canEdit() !== null ? post : null;
       });
   }
 
@@ -221,7 +221,7 @@ class PostStream extends mixin(Component, evented) {
             if (dt > 1000 * 60 * 60 * 24 * 4) {
               content = [
                 <div className="PostStream-timeGap">
-                  <span>{app.trans('core.period_later', {period: moment.duration(dt).humanize()})}</span>
+                  <span>{app.trans('core.forum.post_stream_time_lapsed_text', {period: moment.duration(dt).humanize()})}</span>
                 </div>,
                 content
               ];
@@ -421,7 +421,7 @@ class PostStream extends mixin(Component, evented) {
     return app.store.find('posts', {
       filter: {discussion: this.discussion.id()},
       page: {near: number}
-    }).then(this.init.bind(this));
+    }).then(this.show.bind(this));
   }
 
   /**
@@ -442,7 +442,7 @@ class PostStream extends mixin(Component, evented) {
 
     this.reset(start, end);
 
-    return this.loadRange(start, end).then(this.init.bind(this));
+    return this.loadRange(start, end).then(this.show.bind(this));
   }
 
   /**

@@ -16,7 +16,6 @@ use Flarum\Core\Model;
 use Flarum\Core\Notifications\Notification;
 use Flarum\Events\RegisterUserPreferences;
 use Illuminate\Contracts\Hashing\Hasher;
-use Flarum\Core\Formatter\FormatterManager;
 use Flarum\Events\UserWasDeleted;
 use Flarum\Events\PostWasDeleted;
 use Flarum\Events\UserWasRegistered;
@@ -32,6 +31,7 @@ use Flarum\Core\Support\Locked;
 use Flarum\Core\Support\VisibleScope;
 use Flarum\Core\Support\EventGenerator;
 use Flarum\Core\Support\ValidatesBeforeSave;
+use Flarum\Core\Exceptions\ValidationException;
 
 /**
  * @todo document database columns with @property
@@ -54,7 +54,13 @@ class User extends Model
      * @var array
      */
     protected $rules = [
-        'username'          => 'required|alpha_dash|unique',
+        'username'          => [
+            'required',
+            'alpha_dash',
+            'unique',
+            'min:3',
+            'max:30',
+        ],
         'email'             => 'required|email|unique',
         'password'          => 'required',
         'join_time'         => 'date',
@@ -70,13 +76,13 @@ class User extends Model
         'join_time',
         'last_seen_time',
         'read_time',
-        'notification_read_time'
+        'notifications_read_time'
     ];
 
     /**
      * An array of permissions that this user has.
      *
-     * @var array|null
+     * @var string[]|null
      */
     protected $permissions = null;
 
@@ -148,6 +154,8 @@ class User extends Model
     public static function register($username, $email, $password)
     {
         $user = new static;
+
+        $user->assertValidPassword($password);
 
         $user->username  = $username;
         $user->email     = $email;
@@ -225,11 +233,27 @@ class User extends Model
      */
     public function changePassword($password)
     {
+        $this->assertValidPassword($password);
+
         $this->password = $password;
 
         $this->raise(new UserPasswordWasChanged($this));
 
         return $this;
+    }
+
+    /**
+     * Validate password input.
+     *
+     * @param string $password
+     * @return void
+     * @throws \Flarum\Core\Exceptions\ValidationException
+     */
+    protected function assertValidPassword($password)
+    {
+        if (strlen($password) < 8) {
+            throw new ValidationException(['password' => 'Password must be at least 8 characters']);
+        }
     }
 
     /**
@@ -276,7 +300,7 @@ class User extends Model
      */
     public function markNotificationsAsRead()
     {
-        $this->notification_read_time = time();
+        $this->notifications_read_time = time();
 
         return $this;
     }
@@ -304,9 +328,9 @@ class User extends Model
      */
     public function getAvatarUrlAttribute()
     {
-        $urlGenerator = app('Flarum\Http\UrlGeneratorInterface');
+        $urlGenerator = app('Flarum\Forum\UrlGenerator');
 
-        return $this->avatar_path ? $urlGenerator->toAsset('assets/avatars/'.$this->avatar_path) : null;
+        return $this->avatar_path ? $urlGenerator->toAsset('avatars/'.$this->avatar_path) : null;
     }
 
     /**
@@ -359,10 +383,36 @@ class User extends Model
         }
 
         if (is_null($this->permissions)) {
-            $this->permissions = $this->permissions()->lists('permission')->all();
+            $this->permissions = $this->getPermissions();
         }
 
         return in_array($permission, $this->permissions);
+    }
+
+    /**
+     * Check whether the user has a permission that is like the given string,
+     * based on their groups.
+     *
+     * @param string $match
+     * @return boolean
+     */
+    public function hasPermissionLike($match)
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        if (is_null($this->permissions)) {
+            $this->permissions = $this->getPermissions();
+        }
+
+        foreach ($this->permissions as $permission) {
+            if (substr($permission, -strlen($match)) === $match) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -381,16 +431,43 @@ class User extends Model
     /**
      * Get the number of unread notifications for the user.
      *
-     * @return mixed
+     * @return int
      */
     public function getUnreadNotificationsCount()
     {
-        return $this->notifications()
-            ->whereIn('type', $this->getAlertableNotificationTypes())
-            ->where('time', '>', $this->notification_read_time ?: 0)
-            ->where('is_read', 0)
-            ->where('is_deleted', 0)
-            ->count($this->getConnection()->raw('DISTINCT type, subject_id'));
+        return $this->getUnreadNotifications()->count();
+    }
+
+    /**
+     * Get all notifications that have not been read yet
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    protected function getUnreadNotifications()
+    {
+        static $cached = null;
+
+        if (is_null($cached)) {
+            $cached = $this->notifications()
+                ->whereIn('type', $this->getAlertableNotificationTypes())
+                ->where('is_read', 0)
+                ->where('is_deleted', 0)
+                ->get();
+        }
+
+        return $cached;
+    }
+
+    /**
+     * Get the number of new, unseen notifications for the user.
+     *
+     * @return int
+     */
+    public function getNewNotificationsCount()
+    {
+        return $this->getUnreadNotifications()->filter(function ($notification) {
+            return $notification->time > $this->notifications_read_time ?: 0;
+        })->count();
     }
 
     /**
@@ -574,6 +651,16 @@ class User extends Model
         event(new GetUserGroups($this, $groupIds));
 
         return Permission::whereIn('group_id', $groupIds);
+    }
+
+    /**
+     * Get a list of permissions that the user has.
+     *
+     * @return string[]
+     */
+    public function getPermissions()
+    {
+        return $this->permissions()->lists('permission')->all();
     }
 
     /**

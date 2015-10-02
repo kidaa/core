@@ -2,6 +2,8 @@ import Modal from 'flarum/components/Modal';
 import LogInModal from 'flarum/components/LogInModal';
 import avatar from 'flarum/helpers/avatar';
 import Button from 'flarum/components/Button';
+import LogInButtons from 'flarum/components/LogInButtons';
+import extractText from 'flarum/utils/extractText';
 
 /**
  * The `SignUpModal` component displays a modal dialog with a singup form.
@@ -11,6 +13,7 @@ import Button from 'flarum/components/Button';
  * - `username`
  * - `email`
  * - `password`
+ * - `token` An email token to sign up with.
  */
 export default class SignUpModal extends Modal {
   constructor(...args) {
@@ -50,7 +53,7 @@ export default class SignUpModal extends Modal {
   }
 
   title() {
-    return app.trans('core.sign_up');
+    return app.trans('core.forum.sign_up_title');
   }
 
   content() {
@@ -65,43 +68,46 @@ export default class SignUpModal extends Modal {
   }
 
   body() {
-    const body = [(
+    const body = [
+      this.props.token ? '' : <LogInButtons/>,
+
       <div className="Form Form--centered">
         <div className="Form-group">
-          <input className="FormControl" name="username" placeholder={app.trans('core.username')}
+          <input className="FormControl" name="username" placeholder={extractText(app.trans('core.forum.sign_up_username_placeholder'))}
             value={this.username()}
             onchange={m.withAttr('value', this.username)}
             disabled={this.loading} />
         </div>
 
         <div className="Form-group">
-          <input className="FormControl" name="email" type="email" placeholder={app.trans('core.email')}
+          <input className="FormControl" name="email" type="email" placeholder={extractText(app.trans('core.forum.sign_up_email_placeholder'))}
             value={this.email()}
             onchange={m.withAttr('value', this.email)}
-            disabled={this.loading} />
+            disabled={this.loading || (this.props.token && this.props.email)} />
         </div>
 
-        <div className="Form-group">
-          <input className="FormControl" name="password" type="password" placeholder={app.trans('core.password')}
-            value={this.password()}
-            onchange={m.withAttr('value', this.password)}
-            disabled={this.loading} />
-        </div>
+        {this.props.token ? '' : (
+          <div className="Form-group">
+            <input className="FormControl" name="password" type="password" placeholder={extractText(app.trans('core.forum.sign_up_password_placeholder'))}
+              value={this.password()}
+              onchange={m.withAttr('value', this.password)}
+              disabled={this.loading} />
+          </div>
+        )}
 
         <div className="Form-group">
-          {Button.component({
-            className: 'Button Button--primary Button--block',
-            type: 'submit',
-            loading: this.loading,
-            children: app.trans('core.sign_up')
-          })}
+          <Button
+            className="Button Button--primary Button--block"
+            type="submit"
+            loading={this.loading}>
+            {app.trans('core.forum.sign_up_submit_button')}
+          </Button>
         </div>
       </div>
-    )];
+    ];
 
     if (this.welcomeUser) {
       const user = this.welcomeUser;
-      const emailProviderName = user.email().split('@')[1];
 
       const fadeIn = (element, isInitialized) => {
         if (isInitialized) return;
@@ -113,22 +119,15 @@ export default class SignUpModal extends Modal {
           <div className="darkenBackground">
             <div className="container">
               {avatar(user)}
-              <h3>{app.trans('core.welcome_user', {user})}</h3>
+              <h3>{app.trans('core.forum.sign_up_welcome_text', {user})}</h3>
 
-              {!user.isActivated() ? [
-                <p>{app.trans('core.confirmation_email_sent', {email: <strong>{user.email()}</strong>})}</p>,
-                <p>
-                  <a href={`http://${emailProviderName}`} className="Button Button--primary" target="_blank">
-                    {app.trans('core.go_to', {location: emailProviderName})}
-                  </a>
-                </p>
-              ] : (
-                <p>
-                  <button className="Button Button--primary" onclick={this.hide.bind(this)}>
-                    {app.trans('core.dismiss')}
-                  </button>
-                </p>
-              )}
+              <p>{app.trans('core.forum.sign_up_confirmation_message', {email: <strong>{user.email()}</strong>})}</p>
+
+              <p>
+                <Button className="Button Button--primary" onclick={this.hide.bind(this)}>
+                  {app.trans('core.forum.sign_up_dismiss_button')}
+                </Button>
+              </p>
             </div>
           </div>
         </div>
@@ -141,8 +140,8 @@ export default class SignUpModal extends Modal {
   footer() {
     return [
       <p className="SignUpModal-logIn">
-        {app.trans('core.before_log_in_link')}{' '}
-        <a onclick={this.logIn.bind(this)}>{app.trans('core.log_in')}</a>
+        {app.trans('core.forum.sign_up_already_have_account_text')}
+        <a onclick={this.logIn.bind(this)}>{app.trans('core.forum.sign_up_log_in_link')}</a>
       </p>
     ];
   }
@@ -150,6 +149,8 @@ export default class SignUpModal extends Modal {
   /**
    * Open the log in modal, prefilling it with an email/username/password if
    * the user has entered one.
+   *
+   * @public
    */
   logIn() {
     const props = {
@@ -161,10 +162,10 @@ export default class SignUpModal extends Modal {
   }
 
   onready() {
-    if (this.props.username) {
+    if (this.props.username && !this.props.email) {
       this.$('[name=email]').select();
     } else {
-      super.onready();
+      this.$('[name=username]').select();
     }
   }
 
@@ -173,22 +174,52 @@ export default class SignUpModal extends Modal {
 
     this.loading = true;
 
-    const data = {
-      username: this.username(),
-      email: this.email(),
-      password: this.password()
-    };
+    const data = this.submitData();
 
-    app.store.createRecord('users').save(data).then(
-      user => {
-        this.welcomeUser = user;
-        this.loading = false;
-        m.redraw();
+    app.request({
+      url: app.forum.attribute('baseUrl') + '/register',
+      method: 'POST',
+      data
+    }).then(
+      payload => {
+        const user = app.store.pushPayload(payload);
+
+        // If the user's new account has been activated, then we can assume
+        // that they have been logged in too. Thus, we will reload the page.
+        // Otherwise, we will show a message asking them to check their email.
+        if (user.isActivated()) {
+          window.location.reload();
+        } else {
+          this.welcomeUser = user;
+          this.loading = false;
+          m.redraw();
+        }
       },
       response => {
         this.loading = false;
-        this.handleErrors(response.errors);
+        this.handleErrors(response);
       }
     );
+  }
+
+  /**
+   * Get the data that should be submitted in the sign-up request.
+   *
+   * @return {Object}
+   * @public
+   */
+  submitData() {
+    const data = {
+      username: this.username(),
+      email: this.email()
+    };
+
+    if (this.props.token) {
+      data.token = this.props.token;
+    } else {
+      data.password = this.password();
+    }
+
+    return data;
   }
 }

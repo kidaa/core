@@ -1,4 +1,4 @@
-/*global s9e*/
+/*global s9e, hljs*/
 
 import Post from 'flarum/components/Post';
 import classList from 'flarum/utils/classList';
@@ -48,10 +48,51 @@ export default class CommentPost extends Post {
         {this.isEditing()
           ? <div className="Post-preview" config={this.configPreview.bind(this)}/>
           : m.trust(this.props.post.contentHtml())}
-      </div>,
-      <footer className="Post-footer"><ul>{listItems(this.footerItems().toArray())}</ul></footer>,
-      <aside className="Post-actions"><ul>{listItems(this.actionItems().toArray())}</ul></aside>
+      </div>
     ];
+  }
+
+  config(isInitialized, context) {
+    super.config(...arguments);
+
+    const contentHtml = this.isEditing() ? '' : this.props.post.contentHtml();
+
+    if (context.contentHtml !== contentHtml) {
+      if (typeof hljs === 'undefined') {
+        this.loadHljs();
+      } else {
+        this.$('pre code').each(function(i, elm) {
+          hljs.highlightBlock(elm);
+        });
+      }
+    }
+
+    context.contentHtml = contentHtml;
+  }
+
+  /**
+   * Load the highlight.js library and initialize highlighting when done.
+   *
+   * @private
+   */
+  loadHljs() {
+    const head = document.getElementsByTagName('head')[0];
+
+    const stylesheet = document.createElement('link');
+    stylesheet.type = 'text/css';
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = '//cdnjs.cloudflare.com/ajax/libs/highlight.js/8.7/styles/default.min.css';
+    head.appendChild(stylesheet);
+
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.onload = () => {
+      hljs._ = {};
+      hljs.initHighlighting();
+    };
+    script.async = true;
+    script.src = '//cdnjs.cloudflare.com/ajax/libs/highlight.js/8.7/highlight.min.js';
+    head.appendChild(script);
   }
 
   isEditing() {
@@ -66,8 +107,8 @@ export default class CommentPost extends Post {
     return {
       className: classList({
         'CommentPost': true,
-        'hidden': post.isHidden(),
-        'edited': post.isEdited(),
+        'Post--hidden': post.isHidden(),
+        'Post--edited': post.isEdited(),
         'revealContent': this.revealContent,
         'editing': this.isEditing()
       })
@@ -132,23 +173,5 @@ export default class CommentPost extends Post {
     }
 
     return items;
-  }
-
-  /**
-   * Build an item list for the post's footer.
-   *
-   * @return {ItemList}
-   */
-  footerItems() {
-    return new ItemList();
-  }
-
-  /**
-   * Build an item list for the post's actions.
-   *
-   * @return {ItemList}
-   */
-  actionItems() {
-    return new ItemList();
   }
 }

@@ -14,7 +14,7 @@ export default class DiscussionRenamedPost extends EventPost {
   }
 
   descriptionKey() {
-    return 'core.discussion_renamed_post';
+    return 'core.forum.post_stream_discussion_renamed_text';
   }
 
   descriptionData() {
@@ -23,8 +23,8 @@ export default class DiscussionRenamedPost extends EventPost {
     const newTitle = post.content()[1];
 
     return {
-      old: <strong className="DiscussionRenamedPost-old">{oldTitle}</strong>,
-      new: <strong className="DiscussionRenamedPost-new">{newTitle}</strong>
+      'old': <strong className="DiscussionRenamedPost-old">{oldTitle}</strong>,
+      'new': <strong className="DiscussionRenamedPost-new">{newTitle}</strong>
     };
   }
 }

@@ -44,7 +44,7 @@ class PostsServiceProvider extends ServiceProvider
                 $actor = $event->actor;
 
                 if ($action === 'view' &&
-                    (! $post->hide_user_id || $post->hide_user_id == $actor->id || $post->can($actor, 'edit'))) {
+                    (! $post->hide_time || $post->user_id == $actor->id || $post->can($actor, 'edit'))) {
                     return true;
                 }
 
@@ -55,11 +55,12 @@ class PostsServiceProvider extends ServiceProvider
                     if ($post->discussion->can($actor, 'editPosts')) {
                         return true;
                     }
-                    if ($post->user_id == $actor->id && (! $post->hide_user_id || $post->hide_user_id == $actor->id)) {
+
+                    if ($post->user_id == $actor->id && (! $post->hide_time || $post->hide_user_id == $actor->id)) {
                         $allowEditing = $settings->get('allow_post_editing');
 
                         if ($allowEditing === '-1' ||
-                            ($allowEditing === 'reply' && $event->model->number == $event->model->discussion->last_post_number) ||
+                            ($allowEditing === 'reply' && $event->model->number >= $event->model->discussion->last_post_number) ||
                             ($event->model->time->diffInMinutes(Carbon::now()) < $allowEditing)) {
                             return true;
                         }
@@ -80,8 +81,8 @@ class PostsServiceProvider extends ServiceProvider
 
             if (! $event->discussion->can($user, 'editPosts')) {
                 $event->query->where(function ($query) use ($user) {
-                    $query->whereNull('hide_user_id')
-                        ->orWhere('hide_user_id', $user->id);
+                    $query->whereNull('hide_time')
+                        ->orWhere('user_id', $user->id);
                 });
             }
         });

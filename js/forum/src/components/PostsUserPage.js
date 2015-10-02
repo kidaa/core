@@ -51,7 +51,7 @@ export default class PostsUserPage extends UserPage {
       footer = (
         <div className="PostsUserPage-loadMore">
           {Button.component({
-            children: app.trans('core.load_more'),
+            children: app.trans('core.forum.user_posts_load_more_button'),
             className: 'Button',
             onclick: this.loadMore.bind(this)
           })}
@@ -80,8 +80,8 @@ export default class PostsUserPage extends UserPage {
    * Initialize the component with a user, and trigger the loading of their
    * activity feed.
    */
-  init(user) {
-    super.init(user);
+  show(user) {
+    super.show(user);
 
     this.refresh();
   }
@@ -95,9 +95,7 @@ export default class PostsUserPage extends UserPage {
     this.loading = true;
     this.posts = [];
 
-    // Redraw, but only if we're not in the middle of a route change.
-    m.startComputation();
-    m.endComputation();
+    m.lazyRedraw();
 
     this.loadResults().then(this.parseResults.bind(this));
   }

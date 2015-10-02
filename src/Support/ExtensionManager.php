@@ -48,14 +48,10 @@ class ExtensionManager
 
     public function enable($extension)
     {
-        $enabled = $this->getEnabled();
+        if (! $this->isEnabled($extension)) {
+            $enabled = $this->getEnabled();
 
-        if (! in_array($extension, $enabled)) {
             $enabled[] = $extension;
-
-            $class = $this->load($extension);
-
-            $class->install();
 
             $this->migrate($extension);
 
@@ -78,14 +74,10 @@ class ExtensionManager
     {
         $this->disable($extension);
 
-        $class = $this->load($extension);
-
-        $class->uninstall();
-
-        $this->migrate($extension, false);
+        $this->migrateDown($extension);
     }
 
-    protected function migrate($extension, $up = true)
+    public function migrate($extension, $up = true)
     {
         $migrationDir = base_path('../extensions/' . $extension . '/migrations');
 
@@ -98,6 +90,11 @@ class ExtensionManager
         } else {
             $this->migrator->reset($migrationDir, $extension);
         }
+    }
+
+    public function migrateDown($extension)
+    {
+        $this->migrate($extension, false);
     }
 
     public function getMigrator()
@@ -119,15 +116,9 @@ class ExtensionManager
         $this->config->set('extensions_enabled', json_encode($enabled));
     }
 
-    protected function load($extension)
+    public function isEnabled($extension)
     {
-        if (file_exists($file = $this->getExtensionsDir() . '/' . $extension . '/bootstrap.php')) {
-            $className = require $file;
-
-            $class = new $className($this->app);
-        }
-
-        return $class;
+        return in_array($extension, $this->getEnabled());
     }
 
     protected function getExtensionsDir()

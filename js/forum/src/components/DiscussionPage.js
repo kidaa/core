@@ -1,4 +1,4 @@
-import Component from 'flarum/Component';
+import Page from 'flarum/components/Page';
 import ItemList from 'flarum/utils/ItemList';
 import DiscussionHero from 'flarum/components/DiscussionHero';
 import PostStream from 'flarum/components/PostStream';
@@ -6,15 +6,13 @@ import PostStreamScrubber from 'flarum/components/PostStreamScrubber';
 import LoadingIndicator from 'flarum/components/LoadingIndicator';
 import SplitDropdown from 'flarum/components/SplitDropdown';
 import listItems from 'flarum/helpers/listItems';
-import mixin from 'flarum/utils/mixin';
-import evented from 'flarum/utils/evented';
 import DiscussionControls from 'flarum/utils/DiscussionControls';
 
 /**
  * The `DiscussionPage` component displays a whole discussion page, including
  * the discussion list pane, the hero, the posts, and the sidebar.
  */
-export default class DiscussionPage extends mixin(Component, evented) {
+export default class DiscussionPage extends Page {
   constructor(...args) {
     super(...args);
 
@@ -43,18 +41,14 @@ export default class DiscussionPage extends mixin(Component, evented) {
       app.pane.enable();
       app.pane.hide();
 
-      if (app.current instanceof DiscussionPage) {
+      if (app.previous instanceof DiscussionPage) {
         m.redraw.strategy('diff');
       }
     }
 
-    // Push onto the history stack, but use a generalised key so that navigating
-    // to a few different discussions won't override the behaviour of the back
-    // button.
     app.history.push('discussion');
-    app.current = this;
-    app.drawer.hide();
-    app.modal.close();
+
+    this.bodyClass = 'App--discussion';
   }
 
   onunload(e) {
@@ -67,9 +61,9 @@ export default class DiscussionPage extends mixin(Component, evented) {
       if (idParam && idParam.split('-')[0] === this.discussion.id()) {
         e.preventDefault();
 
-        const near = Number(m.route.param('near')) || 1;
+        const near = m.route.param('near') || '1';
 
-        if (near !== Number(this.near)) {
+        if (near !== String(this.near)) {
           this.stream.goToNumber(near);
         }
 
@@ -121,13 +115,6 @@ export default class DiscussionPage extends mixin(Component, evented) {
     );
   }
 
-  config(isInitialized, context) {
-    if (isInitialized) return;
-
-    $('#app').addClass('App--discussion');
-    context.onunload = () => $('#app').removeClass('App--discussion');
-  }
-
   /**
    * Clear and reload the discussion.
    */
@@ -141,20 +128,15 @@ export default class DiscussionPage extends mixin(Component, evented) {
       // component for the first time on page load, then any calls to m.redraw
       // will be ineffective and thus any configs (scroll code) will be run
       // before stuff is drawn to the page.
-      setTimeout(this.init.bind(this, preloadedDiscussion));
+      setTimeout(this.show.bind(this, preloadedDiscussion));
     } else {
       const params = this.requestParams();
 
       app.store.find('discussions', m.route.param('id').split('-')[0], params)
-        .then(this.init.bind(this));
+        .then(this.show.bind(this));
     }
 
-    // Since this may be called during the component's constructor, i.e. in the
-    // middle of a redraw, forcing another redraw would not bode well. Instead
-    // we start/end a computation so Mithril will only redraw if it isn't
-    // already doing so.
-    m.startComputation();
-    m.endComputation();
+    m.lazyRedraw();
   }
 
   /**
@@ -174,7 +156,7 @@ export default class DiscussionPage extends mixin(Component, evented) {
    *
    * @param {Discussion} discussion
    */
-  init(discussion) {
+  show(discussion) {
     this.discussion = discussion;
 
     app.setTitle(discussion.title());
@@ -202,8 +184,6 @@ export default class DiscussionPage extends mixin(Component, evented) {
     this.stream = new PostStream({discussion, includedPosts});
     this.stream.on('positionChanged', this.positionChanged.bind(this));
     this.stream.goToNumber(m.route.param('near') || includedPosts[0].number(), true);
-
-    this.trigger('loaded', discussion);
   }
 
   /**

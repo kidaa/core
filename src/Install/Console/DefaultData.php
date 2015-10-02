@@ -13,19 +13,20 @@ namespace Flarum\Install\Console;
 class DefaultData implements ProvidesData
 {
     protected $databaseConfiguration = [
-        'driver'    => 'mysql',
-        'host'      => 'localhost',
-        'database'  => 'flarum',
-        'username'  => 'root',
-        'password'  => 'root',
-        'prefix'    => '',
+        'driver'   => 'mysql',
+        'host'     => 'localhost',
+        'database' => 'flarum',
+        'username' => 'root',
+        'password' => 'root',
+        'prefix'   => '',
     ];
 
     protected $baseUrl = 'http://flarum.dev';
 
     protected $adminUser = [
         'username'              => 'admin',
-        'password'              => 'admin',
+        'password'              => 'password',
+        'password_confirmation' => 'password',
         'email'                 => 'admin@example.com',
     ];
 

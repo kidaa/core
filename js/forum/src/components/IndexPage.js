@@ -1,6 +1,6 @@
-import Component from 'flarum/Component';
+import { extend } from 'flarum/extend';
+import Page from 'flarum/components/Page';
 import ItemList from 'flarum/utils/ItemList';
-import affixSidebar from 'flarum/utils/affixSidebar';
 import listItems from 'flarum/helpers/listItems';
 import DiscussionList from 'flarum/components/DiscussionList';
 import WelcomeHero from 'flarum/components/WelcomeHero';
@@ -16,22 +16,22 @@ import SelectDropdown from 'flarum/components/SelectDropdown';
  * The `IndexPage` component displays the index page, including the welcome
  * hero, the sidebar, and the discussion list.
  */
-export default class IndexPage extends Component {
+export default class IndexPage extends Page {
   constructor(...args) {
     super(...args);
 
     // If the user is returning from a discussion page, then take note of which
     // discussion they have just visited. After the view is rendered, we will
     // scroll down so that this discussion is in view.
-    if (app.current instanceof DiscussionPage) {
-      this.lastDiscussion = app.current.discussion;
+    if (app.previous instanceof DiscussionPage) {
+      this.lastDiscussion = app.previous.discussion;
     }
 
     // If the user is coming from the discussion list, then they have either
     // just switched one of the parameters (filter, sort, search) or they
     // probably want to refresh the results. We will clear the discussion list
     // cache so that results are reloaded.
-    if (app.current instanceof IndexPage) {
+    if (app.previous instanceof IndexPage) {
       app.cache.discussionList = null;
     }
 
@@ -55,9 +55,8 @@ export default class IndexPage extends Component {
     }
 
     app.history.push('index');
-    app.current = this;
-    app.drawer.hide();
-    app.modal.close();
+
+    this.bodyClass = 'App--index';
   }
 
   onunload() {
@@ -71,7 +70,7 @@ export default class IndexPage extends Component {
       <div className="IndexPage">
         {this.hero()}
         <div className="container">
-          <nav className="IndexPage-nav sideNav" config={affixSidebar}>
+          <nav className="IndexPage-nav sideNav">
             <ul>{listItems(this.sidebarItems().toArray())}</ul>
           </nav>
           <div className="IndexPage-results sideNavOffset">
@@ -87,13 +86,11 @@ export default class IndexPage extends Component {
   }
 
   config(isInitialized, context) {
+    super.config(...arguments);
+
     if (isInitialized) return;
 
-    $('#app').addClass('App--index');
-    context.onunload = () => {
-      $('#app').removeClass('App--index')
-        .css('min-height', '');
-    };
+    extend(context, 'onunload', () => $('#app').css('min-height', ''));
 
     app.setTitle('');
     app.setTitleCount(0);
@@ -150,7 +147,7 @@ export default class IndexPage extends Component {
 
     items.add('newDiscussion',
       Button.component({
-        children: canStartDiscussion ? app.trans('core.start_a_discussion') : 'Can\'t Start Discussion',
+        children: app.trans(canStartDiscussion ? 'core.forum.index_start_discussion_button' : 'core.forum.index_cannot_start_discussion_button'),
         icon: 'edit',
         className: 'Button Button--primary IndexPage-newDiscussion',
         itemClassName: 'App-primaryControl',
@@ -183,7 +180,7 @@ export default class IndexPage extends Component {
     items.add('allDiscussions',
       LinkButton.component({
         href: app.route('index', params),
-        children: app.trans('core.all_discussions'),
+        children: app.trans('core.forum.index_all_discussions_link'),
         icon: 'comments-o'
       }),
       100
@@ -204,7 +201,7 @@ export default class IndexPage extends Component {
 
     const sortOptions = {};
     for (const i in app.cache.discussionList.sortMap()) {
-      sortOptions[i] = app.trans('core.sort_' + i);
+      sortOptions[i] = app.trans('core.forum.index_sort_' + i + '_button');
     }
 
     items.add('sort',
@@ -229,7 +226,7 @@ export default class IndexPage extends Component {
 
     items.add('refresh',
       Button.component({
-        title: app.trans('core.refresh'),
+        title: app.trans('core.forum.index_refresh_tooltip'),
         icon: 'refresh',
         className: 'Button Button--icon',
         onclick: () => app.cache.discussionList.refresh()
@@ -239,7 +236,7 @@ export default class IndexPage extends Component {
     if (app.session.user) {
       items.add('markAllAsRead',
         Button.component({
-          title: app.trans('core.mark_all_as_read'),
+          title: app.trans('core.forum.index_mark_all_as_read_tooltip'),
           icon: 'check',
           className: 'Button Button--icon',
           onclick: this.markAllAsRead.bind(this)

@@ -43,7 +43,7 @@ class Post extends Model
     protected $rules = [
         'discussion_id' => 'required|integer',
         'time'          => 'required|date',
-        'content'       => 'required',
+        'content'       => 'required|max:65535',
         'number'        => 'integer',
         'user_id'       => 'integer',
         'edit_time'     => 'date',
@@ -120,7 +120,7 @@ class Post extends Model
         if ($discussion) {
             $this->setRelation('discussion', $discussion);
 
-            return (bool) $discussion->postsVisibleTo($user)->find($this->id)->count();
+            return (bool) $discussion->postsVisibleTo($user)->where('id', $this->id)->count();
         }
 
         return false;

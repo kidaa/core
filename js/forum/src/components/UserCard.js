@@ -40,6 +40,7 @@ export default class UserCard extends Component {
               className: 'UserCard-controls App-primaryControl',
               menuClassName: 'Dropdown-menu--right',
               buttonClassName: this.props.controlsButtonClassName,
+              label: app.trans('core.forum.user_controls_button'),
               icon: 'ellipsis-v'
             }) : ''}
 
@@ -94,13 +95,13 @@ export default class UserCard extends Component {
       items.add('lastSeen', (
         <span className={'UserCard-lastSeen' + (online ? ' online' : '')}>
           {online
-            ? [icon('circle'), ' ', app.trans('core.online')]
+            ? [icon('circle'), ' ', app.trans('core.forum.user_online_text')]
             : [icon('clock-o'), ' ', humanTime(lastSeenTime)]}
         </span>
       ));
     }
 
-    items.add('joined', app.trans('core.joined', {ago: humanTime(user.joinTime())}));
+    items.add('joined', app.trans('core.forum.user_joined_date_text', {ago: humanTime(user.joinTime())}));
 
     return items;
   }

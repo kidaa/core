@@ -2,6 +2,7 @@ import Component from 'flarum/Component';
 import DiscussionListItem from 'flarum/components/DiscussionListItem';
 import Button from 'flarum/components/Button';
 import LoadingIndicator from 'flarum/components/LoadingIndicator';
+import Placeholder from 'flarum/components/Placeholder';
 
 /**
  * The `DiscussionList` component displays a list of discussions.
@@ -47,10 +48,19 @@ export default class DiscussionList extends Component {
       loading = LoadingIndicator.component();
     } else if (this.moreResults) {
       loading = Button.component({
-        children: app.trans('core.load_more'),
+        children: app.trans('core.forum.discussion_list_load_more_button'),
         className: 'Button',
         onclick: this.loadMore.bind(this)
       });
+    }
+
+    if (this.discussions.length === 0 && !this.loading) {
+      const text = 'Looks like there are no discussions here. Why don\'t you create a new one?';
+      return (
+        <div className="DiscussionList">
+          {Placeholder.component({text})}
+        </div>
+      );
     }
 
     return (
@@ -179,12 +189,7 @@ export default class DiscussionList extends Component {
     this.loading = false;
     this.moreResults = !!results.payload.links.next;
 
-    // Since this may be called during the component's constructor, i.e. in the
-    // middle of a redraw, forcing another redraw would not bode well. Instead
-    // we start/end a computation so Mithril will only redraw if it isn't
-    // already doing so.
-    m.startComputation();
-    m.endComputation();
+    m.lazyRedraw();
 
     return results;
   }

@@ -13,7 +13,7 @@ namespace Flarum\Forum;
 use Flarum\Core\Users\Guest;
 use Flarum\Events\RegisterForumRoutes;
 use Flarum\Http\RouteCollection;
-use Flarum\Http\UrlGenerator;
+use Flarum\Forum\UrlGenerator;
 use Flarum\Support\ServiceProvider;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -31,7 +31,7 @@ class ForumServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(
-            'Flarum\Http\UrlGeneratorInterface',
+            UrlGenerator::class,
             function () {
                 return new UrlGenerator($this->app->make('flarum.forum.routes'));
             }
@@ -62,72 +62,83 @@ class ForumServiceProvider extends ServiceProvider
 
         $routes->get(
             '/all',
-            'flarum.forum.index',
-            $this->action('Flarum\Forum\Actions\IndexAction')
+            'index',
+            $defaultAction = $this->action('Flarum\Forum\Actions\IndexAction')
         );
 
         $routes->get(
-            '/d/{id:\d+(?:-[^/]*)?}[/{near}]',
-            'flarum.forum.discussion',
+            '/d/{id:\d+(?:-[^/]*)?}[/{near:[^/]*}]',
+            'discussion',
             $this->action('Flarum\Forum\Actions\DiscussionAction')
         );
 
         $routes->get(
-            '/u/{username}[/{filter}]',
-            'flarum.forum.user',
+            '/u/{username}[/{filter:[^/]*}]',
+            'user',
             $this->action('Flarum\Forum\Actions\ClientAction')
         );
 
         $routes->get(
             '/settings',
-            'flarum.forum.settings',
+            'settings',
             $this->action('Flarum\Forum\Actions\ClientAction')
         );
 
         $routes->get(
             '/notifications',
-            'flarum.forum.notifications',
+            'notifications',
             $this->action('Flarum\Forum\Actions\ClientAction')
         );
 
         $routes->get(
             '/logout',
-            'flarum.forum.logout',
+            'logout',
             $this->action('Flarum\Forum\Actions\LogoutAction')
         );
 
         $routes->post(
             '/login',
-            'flarum.forum.login',
+            'login',
             $this->action('Flarum\Forum\Actions\LoginAction')
+        );
+
+        $routes->post(
+            '/register',
+            'register',
+            $this->action('Flarum\Forum\Actions\RegisterAction')
         );
 
         $routes->get(
             '/confirm/{token}',
-            'flarum.forum.confirmEmail',
+            'confirmEmail',
             $this->action('Flarum\Forum\Actions\ConfirmEmailAction')
         );
 
         $routes->get(
             '/reset/{token}',
-            'flarum.forum.resetPassword',
+            'resetPassword',
             $this->action('Flarum\Forum\Actions\ResetPasswordAction')
         );
 
         $routes->post(
             '/reset',
-            'flarum.forum.savePassword',
+            'savePassword',
             $this->action('Flarum\Forum\Actions\SavePasswordAction')
         );
 
         event(new RegisterForumRoutes($routes));
 
         $settings = $this->app->make('Flarum\Core\Settings\SettingsRepository');
+        $defaultRoute = $settings->get('default_route');
+
+        if (isset($routes->getRouteData()[0]['GET'][$defaultRoute])) {
+            $defaultAction = $routes->getRouteData()[0]['GET'][$defaultRoute];
+        }
 
         $routes->get(
             '/',
-            'flarum.forum.default',
-            $routes->getRouteData()[0]['GET'][$settings->get('default_route')]
+            'default',
+            $defaultAction
         );
     }
 

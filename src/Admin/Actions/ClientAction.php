@@ -11,11 +11,14 @@
 namespace Flarum\Admin\Actions;
 
 use Flarum\Support\ClientAction as BaseClientAction;
+use Flarum\Support\ClientView;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Flarum\Core\Groups\Permission;
 use Flarum\Api\Client;
 use Flarum\Core\Settings\SettingsRepository;
 use Flarum\Locale\LocaleManager;
+use Flarum\Events\UnserializeConfig;
+use Flarum\Events\BuildAdminClientView;
 
 class ClientAction extends BaseClientAction
 {
@@ -27,9 +30,7 @@ class ClientAction extends BaseClientAction
     /**
      * {@inheritdoc}
      */
-    protected $translationKeys = [
-        'core.log_out'
-    ];
+    protected $translationKeys = ['core.admin'];
 
     /**
      * {@inheritdoc}
@@ -44,11 +45,23 @@ class ClientAction extends BaseClientAction
     /**
      * {@inheritdoc}
      */
+    protected function fireEvent(ClientView $view, array &$keys)
+    {
+        event(new BuildAdminClientView($this, $view, $keys));
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function render(Request $request, array $routeParams = [])
     {
         $view = parent::render($request, $routeParams);
 
-        $view->setVariable('config', $this->settings->all());
+        $config = $this->settings->all();
+
+        event(new UnserializeConfig($config));
+
+        $view->setVariable('config', $config);
         $view->setVariable('permissions', Permission::map());
         $view->setVariable('extensions', app('flarum.extensions')->getInfo());
 

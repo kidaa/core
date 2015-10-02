@@ -42,6 +42,15 @@ class Formatter
 
         event(new FormatterConfigurator($configurator));
 
+        $dom = $configurator->tags['URL']->template->asDOM();
+
+        foreach ($dom->getElementsByTagName('a') as $a) {
+            $a->setAttribute('target', '_blank');
+            $a->setAttribute('rel', 'nofollow');
+        }
+
+        $dom->saveChanges();
+
         return $configurator;
     }
 
@@ -60,17 +69,18 @@ class Formatter
         });
     }
 
-    protected function getParser(CommentPost $post)
+    protected function getParser($context = null)
     {
         $parser = $this->getComponent('parser');
-        $parser->registeredVars['post'] = $post;
 
-        event(new FormatterParser($parser, $post));
+        $parser->registeredVars['context'] = $context;
+
+        event(new FormatterParser($parser, $context));
 
         return $parser;
     }
 
-    protected function getRenderer(CommentPost $post)
+    protected function getRenderer($context = null)
     {
         spl_autoload_register(function ($class) {
             if (file_exists($file = storage_path() . '/app/' . $class . '.php')) {
@@ -80,7 +90,7 @@ class Formatter
 
         $renderer = $this->getComponent('renderer');
 
-        event(new FormatterRenderer($renderer, $post));
+        event(new FormatterRenderer($renderer, $context));
 
         return $renderer;
     }
@@ -100,16 +110,16 @@ class Formatter
         ])['js'];
     }
 
-    public function parse($text, CommentPost $post)
+    public function parse($text, $context = null)
     {
-        $parser = $this->getParser($post);
+        $parser = $this->getParser($context);
 
         return $parser->parse($text);
     }
 
-    public function render($xml, CommentPost $post)
+    public function render($xml, $context = null)
     {
-        $renderer = $this->getRenderer($post);
+        $renderer = $this->getRenderer($context);
 
         return $renderer->render($xml);
     }

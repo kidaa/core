@@ -5,7 +5,7 @@ import mixin from 'flarum/utils/mixin';
 import stringToColor from 'flarum/utils/stringToColor';
 import ItemList from 'flarum/utils/ItemList';
 import computed from 'flarum/utils/computed';
-import Badge from 'flarum/components/Badge';
+import GroupBadge from 'flarum/components/GroupBadge';
 
 export default class User extends mixin(Model, {
   username: Model.attribute('username'),
@@ -23,6 +23,7 @@ export default class User extends mixin(Model, {
   lastSeenTime: Model.attribute('lastSeenTime', Model.transformDate),
   readTime: Model.attribute('readTime', Model.transformDate),
   unreadNotificationsCount: Model.attribute('unreadNotificationsCount'),
+  newNotificationsCount: Model.attribute('newNotificationsCount'),
 
   discussionsCount: Model.attribute('discussionsCount'),
   commentsCount: Model.attribute('commentsCount'),
@@ -67,15 +68,7 @@ export default class User extends mixin(Model, {
 
     if (groups) {
       groups.forEach(group => {
-        const name = group.nameSingular();
-
-        items.add('group' + group.id(),
-          Badge.component({
-            label: app.trans('core.group_' + name.toLowerCase(), undefined, name),
-            icon: group.icon(),
-            style: {backgroundColor: group.color()}
-          })
-        );
+        items.add('group' + group.id(), GroupBadge.component({group}));
       });
     }
 
